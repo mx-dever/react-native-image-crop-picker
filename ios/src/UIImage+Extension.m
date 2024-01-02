@@ -97,12 +97,14 @@
     UIGraphicsBeginImageContext(self.size);
     CGContextRef context = UIGraphicsGetCurrentContext();
     [self drawInRect:CGRectMake(0,0,self.size.width,self.size.height)];
-    CGRect rect = CGRectMake(20, self.size.height - 30*heightRatio, self.size.width, self.size.height);
+    CGFloat offsetY = 30*heightRatio < 40 ? 40:30*heightRatio;
+    CGRect rect = CGRectMake(20, self.size.height - offsetY, self.size.width, self.size.height);
     NSString *text = [self currentTimeText];
     
     NSArray *colors = @[(id)[UIColor clearColor].CGColor, (id)[UIColor colorWithRed:0 green:0 blue:0 alpha:0.5].CGColor];
     CGGradientRef gradient = CGGradientCreateWithColors(CGColorSpaceCreateDeviceRGB(), (CFArrayRef)colors, NULL);
-    CGContextDrawLinearGradient(context, gradient, CGPointMake(0.0f, self.size.height-40*heightRatio), CGPointMake(0.0f, self.size.height), kCGGradientDrawsAfterEndLocation);
+    CGFloat maskOffsetY = 40*heightRatio < 40 ? 40:40*heightRatio;
+    CGContextDrawLinearGradient(context, gradient, CGPointMake(0.0f, self.size.height-maskOffsetY), CGPointMake(0.0f, self.size.height), kCGGradientDrawsAfterEndLocation);
     CGGradientRelease(gradient);
     [text drawInRect:CGRectIntegral(rect) withAttributes:@{NSFontAttributeName: font, NSForegroundColorAttributeName: [UIColor whiteColor]}];
     UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
