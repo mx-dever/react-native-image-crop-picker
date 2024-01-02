@@ -66,9 +66,9 @@ class Compression {
 
         File resizeImageFile = new File(imageDirectory, UUID.randomUUID() + ".jpg");
 
-        OutputStream os = new BufferedOutputStream(new FileOutputStream(resizeImageFile));
+OutputStream os = new BufferedOutputStream(new FileOutputStream(resizeImageFile));
+        bitmap = handlerWaterRemark(bitmap, context.getResources().getDisplayMetrics().density*56);
         bitmap.compress(Bitmap.CompressFormat.JPEG, quality, os);
-
         // Don't set unnecessary exif attribute
         if (shouldSetOrientation(originalOrientation)) {
             ExifInterface exif = new ExifInterface(resizeImageFile.getAbsolutePath());
@@ -80,6 +80,37 @@ class Compression {
         bitmap.recycle();
 
         return resizeImageFile;
+    }
+    private Bitmap handlerWaterRemark(Bitmap bitmap, float textSize) {
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String msg = df.format(new Date());
+        //原始图片宽高
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        //创建一个跟原图一样大的Bitmap
+        Bitmap newBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+        //将该图片作为画布
+        Canvas canvas = new Canvas(newBitmap);
+        //设置画笔颜色
+        Paint paint = new Paint();
+        paint.setColor(Color.WHITE);
+        //画笔
+        Paint maskingPaint = new Paint();
+        maskingPaint.setColor(Color.argb(50, 0,0,0));
+        maskingPaint.setStyle(Paint.Style.FILL);
+        maskingPaint.setStrokeJoin(Paint.Join.ROUND);
+        //设置文字大小
+        paint.setTextSize(textSize);
+        //文字总宽度
+        float textWidth = msg.length() * textSize;
+        canvas.translate(30, (float) (height - textSize*1.2));
+        canvas.rotate(360);
+        canvas.drawRoundRect(new RectF( -20, (float) (-textSize*1.2), textWidth / 2 + 10, (float) (textSize*0.5)), 15,20, maskingPaint);
+        canvas.drawText(msg, 0, 0, paint);
+        //保存图片
+        canvas.save();
+        canvas.restore();
+        return newBitmap;
     }
 
     private int calculateInSampleSize(int originalWidth, int originalHeight, int requestedWidth, int requestedHeight) {

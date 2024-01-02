@@ -90,5 +90,30 @@
     
     return img;
 }
-
+- (UIImage *)drawTimeWaterMaker {
+    CGSize size = [UIScreen mainScreen].bounds.size;
+    UIFont *font = [UIFont boldSystemFontOfSize:16*(self.size.width/size.width)];
+    CGFloat heightRatio = self.size.height/size.height;
+    UIGraphicsBeginImageContext(self.size);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    [self drawInRect:CGRectMake(0,0,self.size.width,self.size.height)];
+    CGRect rect = CGRectMake(20, self.size.height - 30*heightRatio, self.size.width, self.size.height);
+    NSString *text = [self currentTimeText];
+    
+    NSArray *colors = @[(id)[UIColor clearColor].CGColor, (id)[UIColor colorWithRed:0 green:0 blue:0 alpha:0.5].CGColor];
+    CGGradientRef gradient = CGGradientCreateWithColors(CGColorSpaceCreateDeviceRGB(), (CFArrayRef)colors, NULL);
+    CGContextDrawLinearGradient(context, gradient, CGPointMake(0.0f, self.size.height-40*heightRatio), CGPointMake(0.0f, self.size.height), kCGGradientDrawsAfterEndLocation);
+    CGGradientRelease(gradient);
+    [text drawInRect:CGRectIntegral(rect) withAttributes:@{NSFontAttributeName: font, NSForegroundColorAttributeName: [UIColor whiteColor]}];
+    UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
+    
+    UIGraphicsEndImageContext();
+    return newImage;
+}
+- (NSString *)currentTimeText{
+    NSDate * now = [NSDate date];
+    NSDateFormatter *outputFormatter = [[NSDateFormatter alloc] init];
+    [outputFormatter setDateFormat:@"YYYY-MM-dd HH:mm:ss"];
+    return [outputFormatter stringFromDate:now];
+}
 @end

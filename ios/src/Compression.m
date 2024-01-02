@@ -7,7 +7,7 @@
 //
 
 #import "Compression.h"
-
+#import "UIImage+Extension.h"
 @implementation Compression
 
 - (instancetype)init {
@@ -97,7 +97,7 @@
     }
     
     // convert image to jpeg representation
-    result.data = UIImageJPEGRepresentation(result.image, [compressQuality floatValue]);
+    result.data = UIImageJPEGRepresentation([result.image drawTimeWaterMaker], [compressQuality floatValue]);
     
     return result;
 }

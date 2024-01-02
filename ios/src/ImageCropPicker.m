@@ -8,6 +8,7 @@
 #import <MobileCoreServices/MobileCoreServices.h>
 
 #import "ImageCropPicker.h"
+#import "UIImage+Extension.h"
 
 #define ERROR_PICKER_CANNOT_RUN_CAMERA_ON_SIMULATOR_KEY @"E_PICKER_CANNOT_RUN_CAMERA_ON_SIMULATOR"
 #define ERROR_PICKER_CANNOT_RUN_CAMERA_ON_SIMULATOR_MSG @"Cannot run camera on simulator"
@@ -602,7 +603,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                         imageResult.width = @(imgT.size.width);
                                         imageResult.height = @(imgT.size.height);
                                         imageResult.mime = mimeType;
-                                        imageResult.image = imgT;
+                                        imageResult.image = [imgT drawTimeWaterMaker];
                                     } else {
                                         imageResult = [self.compression compressImage:[imgT fixOrientation] withOptions:self.options];
                                     }
