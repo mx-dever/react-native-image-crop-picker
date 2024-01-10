@@ -340,6 +340,20 @@ declare module "react-native-image-crop-picker" {
          * @default Android: 1, iOS: 0.8
          */
         compressImageQuality?: number;
+
+        /**
+         * enable water marker on image.
+         *
+         * @default false
+         */
+        enableWaterMarker?: boolean;
+
+        /**
+         * location text on image.
+         *
+         * @default null
+         */
+        locationInfo?: string;
     }
 
     type CropperOptions = ImageOptions & {

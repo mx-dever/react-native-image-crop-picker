@@ -90,23 +90,22 @@
     
     return img;
 }
-- (UIImage *)drawTimeWaterMaker {
+- (UIImage *)drawTimeWaterMaker:(NSString *)locationInfo {
     CGSize size = [UIScreen mainScreen].bounds.size;
     UIFont *font = [UIFont boldSystemFontOfSize:16*(self.size.width/size.width)];
     CGFloat heightRatio = self.size.height/size.height;
     UIGraphicsBeginImageContext(self.size);
     CGContextRef context = UIGraphicsGetCurrentContext();
     [self drawInRect:CGRectMake(0,0,self.size.width,self.size.height)];
-    CGFloat offsetY = 30*heightRatio < 40 ? 40:30*heightRatio;
-    CGRect rect = CGRectMake(20, self.size.height - offsetY, self.size.width, self.size.height);
+    CGFloat offsetY = 72*heightRatio < 200 ? 200:72*heightRatio;
+    CGRect rect = CGRectMake(20, self.size.height - offsetY, self.size.width-40, self.size.height);
     NSString *text = [self currentTimeText];
-    
     NSArray *colors = @[(id)[UIColor clearColor].CGColor, (id)[UIColor colorWithRed:0 green:0 blue:0 alpha:0.5].CGColor];
     CGGradientRef gradient = CGGradientCreateWithColors(CGColorSpaceCreateDeviceRGB(), (CFArrayRef)colors, NULL);
-    CGFloat maskOffsetY = 40*heightRatio < 40 ? 40:40*heightRatio;
-    CGContextDrawLinearGradient(context, gradient, CGPointMake(0.0f, self.size.height-maskOffsetY), CGPointMake(0.0f, self.size.height), kCGGradientDrawsAfterEndLocation);
+    CGContextDrawLinearGradient(context, gradient, CGPointMake(0.0f, self.size.height-offsetY-30), CGPointMake(0.0f, self.size.height), kCGGradientDrawsAfterEndLocation);
     CGGradientRelease(gradient);
-    [text drawInRect:CGRectIntegral(rect) withAttributes:@{NSFontAttributeName: font, NSForegroundColorAttributeName: [UIColor whiteColor]}];
+    NSString *conent = locationInfo != NULL ? [text stringByAppendingFormat:@"\n%@", locationInfo] : text;
+    [conent drawInRect:rect withAttributes:@{NSFontAttributeName: font, NSForegroundColorAttributeName: [UIColor whiteColor]}];
     UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
     
     UIGraphicsEndImageContext();

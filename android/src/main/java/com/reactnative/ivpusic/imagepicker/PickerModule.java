@@ -96,6 +96,9 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
     private String cropperToolbarColor = null;
     private String cropperToolbarTitle = null;
     private String cropperToolbarWidgetColor = null;
+    // 位置水印信息
+    private String locationInfo = null;
+    private  boolean enableWaterMarker = false;
 
     private int width = 0;
     private int height = 0;
@@ -145,6 +148,8 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         enableRotationGesture = options.hasKey("enableRotationGesture") && options.getBoolean("enableRotationGesture");
         disableCropperColorSetters = options.hasKey("disableCropperColorSetters") && options.getBoolean("disableCropperColorSetters");
         useFrontCamera = options.hasKey("useFrontCamera") && options.getBoolean("useFrontCamera");
+        locationInfo = options.hasKey("locationInfo") ? options.getString("locationInfo") : null;
+        enableWaterMarker = options.hasKey("enableWaterMarker") && options.getBoolean("enableWaterMarker");
         this.options = options;
     }
 
@@ -681,7 +686,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
 
         // if compression options are provided image will be compressed. If none options is provided,
         // then original image will be returned
-        File compressedImage = compression.compressImage(this.reactContext, options, path, original);
+        File compressedImage = compression.compressImage(this.reactContext, options, path, original, enableWaterMarker, locationInfo);
         String compressedImagePath = compressedImage.getPath();
         BitmapFactory.Options options = validateImage(compressedImagePath);
         long modificationDate = new File(path).lastModified();
@@ -846,7 +851,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
             if (resultUri != null) {
                 try {
                     if (width > 0 && height > 0) {
-                        File resized = compression.resize(this.reactContext, resultUri.getPath(), width, height, width, height, 100);
+                        File resized = compression.resize(this.reactContext, resultUri.getPath(), width, height, width, height, 100, enableWaterMarker, locationInfo);
                         resultUri = Uri.fromFile(resized);
                     }
 

@@ -75,6 +75,8 @@
     
     NSNumber *compressImageMaxWidth = [options valueForKey:@"compressImageMaxWidth"];
     NSNumber *compressImageMaxHeight = [options valueForKey:@"compressImageMaxHeight"];
+    NSNumber *enableWaterMarker = [options valueForKey:@"enableWaterMarker"];
+    NSString *locationInfo = [options valueForKey:@"locationInfo"];
     
     // determine if it is necessary to resize image
     BOOL shouldResizeWidth = (compressImageMaxWidth != nil && [compressImageMaxWidth floatValue] < image.size.width);
@@ -97,7 +99,12 @@
     }
     
     // convert image to jpeg representation
-    result.data = UIImageJPEGRepresentation([result.image drawTimeWaterMaker], [compressQuality floatValue]);
+    if ([enableWaterMarker boolValue]) {
+        result.data = UIImageJPEGRepresentation([result.image drawTimeWaterMaker:locationInfo], [compressQuality floatValue]);
+    } else {
+        result.data = UIImageJPEGRepresentation(result.image, [compressQuality floatValue]);
+
+    }
     
     return result;
 }

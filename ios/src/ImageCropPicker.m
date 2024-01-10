@@ -73,7 +73,8 @@ RCT_EXPORT_MODULE();
             @"sortOrder": @"none",
             @"cropperCancelText": @"Cancel",
             @"cropperChooseText": @"Choose",
-            @"cropperRotateButtonsHidden": @NO
+            @"cropperRotateButtonsHidden": @NO,
+            @"enableWaterMarker": @NO
         };
         self.compression = [[Compression alloc] init];
     }
@@ -603,7 +604,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                         imageResult.width = @(imgT.size.width);
                                         imageResult.height = @(imgT.size.height);
                                         imageResult.mime = mimeType;
-                                        imageResult.image = [imgT drawTimeWaterMaker];
+                                        imageResult.image = [imgT drawTimeWaterMaker:self.options[@"locationInfo"]];
                                     } else {
                                         imageResult = [self.compression compressImage:[imgT fixOrientation] withOptions:self.options];
                                     }

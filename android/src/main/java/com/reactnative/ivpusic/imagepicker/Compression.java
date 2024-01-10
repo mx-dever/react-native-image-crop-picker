@@ -10,6 +10,9 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.media.ExifInterface;
 import android.os.Environment;
+import android.text.Layout;
+import android.text.StaticLayout;
+import android.text.TextPaint;
 import android.util.Log;
 import android.util.Pair;
 
@@ -41,7 +44,9 @@ class Compression {
             int originalHeight,
             int maxWidth,
             int maxHeight,
-            int quality
+            int quality,
+            boolean enableWaterMarker,
+            String locationInfo
     ) throws IOException {
         Pair<Integer, Integer> targetDimensions =
                 this.calculateTargetDimensions(originalWidth, originalHeight, maxWidth, maxHeight);
@@ -73,8 +78,10 @@ class Compression {
 
         File resizeImageFile = new File(imageDirectory, UUID.randomUUID() + ".jpg");
 
-OutputStream os = new BufferedOutputStream(new FileOutputStream(resizeImageFile));
-        bitmap = handlerWaterRemark(bitmap, context.getResources().getDisplayMetrics().density*56);
+        OutputStream os = new BufferedOutputStream(new FileOutputStream(resizeImageFile));
+        if (enableWaterMarker) {
+            bitmap = handlerWaterRemark(bitmap, context.getResources().getDisplayMetrics().density*46, locationInfo);
+        }
         bitmap.compress(Bitmap.CompressFormat.JPEG, quality, os);
         // Don't set unnecessary exif attribute
         if (shouldSetOrientation(originalOrientation)) {
@@ -88,7 +95,7 @@ OutputStream os = new BufferedOutputStream(new FileOutputStream(resizeImageFile)
 
         return resizeImageFile;
     }
-    private Bitmap handlerWaterRemark(Bitmap bitmap, float textSize) {
+    private Bitmap handlerWaterRemark(Bitmap bitmap, float textSize, String locationInfo) {
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String msg = df.format(new Date());
         //原始图片宽高
@@ -103,17 +110,26 @@ OutputStream os = new BufferedOutputStream(new FileOutputStream(resizeImageFile)
         paint.setColor(Color.WHITE);
         //画笔
         Paint maskingPaint = new Paint();
-        maskingPaint.setColor(Color.argb(50, 0,0,0));
+        maskingPaint.setColor(Color.argb(60, 0,0,0));
         maskingPaint.setStyle(Paint.Style.FILL);
         maskingPaint.setStrokeJoin(Paint.Join.ROUND);
         //设置文字大小
         paint.setTextSize(textSize);
+        float locationTextSize = textSize;
         //文字总宽度
-        float textWidth = msg.length() * textSize;
-        canvas.translate(30, (float) (height - textSize*1.2));
+        float textWidth = locationInfo != null && locationInfo.length() > msg.length() ? locationInfo.length() * textSize : msg.length() * textSize;
+        canvas.translate(30, (float)(height - textSize*2.2));
         canvas.rotate(360);
-        canvas.drawRoundRect(new RectF( -20, (float) (-textSize*1.2), textWidth / 2 + 10, (float) (textSize*0.5)), 15,20, maskingPaint);
-        canvas.drawText(msg, 0, 0, paint);
+        canvas.drawRoundRect(new RectF( -20,  -textWidth/12, (float) (textWidth*1.2), 280), 10,10, maskingPaint);
+        String content = msg + (locationInfo != null ? '\n' + locationInfo : "");
+        canvas.save();
+        TextPaint tp = new TextPaint();
+        tp.setColor(Color.WHITE);
+        tp.setStyle(Paint.Style.FILL);
+        tp.setTextSize(locationTextSize);
+        StaticLayout staticLayout = new StaticLayout(content, tp, canvas.getWidth()-10, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
+        canvas.translate(0, -staticLayout.getHeight() / 2);
+        staticLayout.draw(canvas);
         //保存图片
         canvas.save();
         canvas.restore();
@@ -143,7 +159,7 @@ OutputStream os = new BufferedOutputStream(new FileOutputStream(resizeImageFile)
                 && !orientation.equals(String.valueOf(ExifInterface.ORIENTATION_UNDEFINED));
     }
 
-    File compressImage(final Context context, final ReadableMap options, final String originalImagePath, final BitmapFactory.Options bitmapOptions) throws IOException {
+    File compressImage(final Context context, final ReadableMap options, final String originalImagePath, final BitmapFactory.Options bitmapOptions, final boolean enableWaterMarker, final String locationInfo) throws IOException {
         Integer maxWidth = options.hasKey("compressImageMaxWidth") ? options.getInt("compressImageMaxWidth") : null;
         Integer maxHeight = options.hasKey("compressImageMaxHeight") ? options.getInt("compressImageMaxHeight") : null;
         Double quality = options.hasKey("compressImageQuality") ? options.getDouble("compressImageQuality") : null;
@@ -169,7 +185,7 @@ OutputStream os = new BufferedOutputStream(new FileOutputStream(resizeImageFile)
         if (maxWidth == null) maxWidth = bitmapOptions.outWidth;
         if (maxHeight == null) maxHeight = bitmapOptions.outHeight;
 
-        return resize(context, originalImagePath, bitmapOptions.outWidth, bitmapOptions.outHeight, maxWidth, maxHeight, targetQuality);
+        return resize(context, originalImagePath, bitmapOptions.outWidth, bitmapOptions.outHeight, maxWidth, maxHeight, targetQuality, enableWaterMarker, locationInfo);
     }
 
     private Pair<Integer, Integer> calculateTargetDimensions(int currentWidth, int currentHeight, int maxWidth, int maxHeight) {

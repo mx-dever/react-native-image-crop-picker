@@ -13,7 +13,7 @@
 @interface UIImage (fixOrientation)
 
 - (UIImage *)fixOrientation;
-- (UIImage *)drawTimeWaterMaker;
+- (UIImage *)drawTimeWaterMaker:(NSString *)locationInfo;
 
 @end
 
