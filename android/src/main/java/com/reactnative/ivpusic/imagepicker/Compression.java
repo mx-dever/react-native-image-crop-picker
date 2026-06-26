@@ -10,8 +10,6 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.media.ExifInterface;
 import android.os.Environment;
-import android.text.Layout;
-import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.util.Log;
 import android.util.Pair;
@@ -26,7 +24,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -101,95 +98,137 @@ class Compression {
         return resizeImageFile;
     }
     private Bitmap handlerWaterRemark(Bitmap bitmap, float density, String locationInfo, String watermarkInfo) {
-        DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        List<String> lines = buildWatermarkLines(df.format(new Date()), locationInfo, watermarkInfo);
-        if (lines.isEmpty()) {
-            return bitmap;
-        }
+        Date now = new Date();
+        WatermarkData data = buildWatermarkData(now, locationInfo, watermarkInfo);
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
         Bitmap newBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
         Canvas canvas = new Canvas(newBitmap);
 
         float scale = Math.max(1f, Math.min(width / 1080f, height / 1440f));
-        float padding = 16f * density * scale;
-        float margin = 20f * density * scale;
-        float radius = 12f * density * scale;
-        float titleSize = 20f * density * scale;
-        float textSize = 15f * density * scale;
-        float lineSpacing = 6f * density * scale;
-        float panelWidth = width - margin * 2;
+        float left = 28f * density * scale;
+        float bottom = 32f * density * scale;
+        float badgeHeight = 54f * density * scale;
+        float badgeRadius = 7f * density * scale;
+        float badgePadding = 12f * density * scale;
+        float tagPaddingHorizontal = 10f * density * scale;
+        float tagHeight = 38f * density * scale;
+        float textGap = 8f * density * scale;
+        float yellowWidth = 6f * density * scale;
+        float contentLeft = left + yellowWidth + 18f * density * scale;
+        float smallTextSize = 18f * density * scale;
+        float middleTextSize = 27f * density * scale;
+        float dateTextSize = 31f * density * scale;
+        float timeTextSize = 34f * density * scale;
+        float tagTextSize = 29f * density * scale;
+        float lineGap = 16f * density * scale;
 
         TextPaint tp = new TextPaint();
         tp.setColor(Color.WHITE);
         tp.setStyle(Paint.Style.FILL);
         tp.setAntiAlias(true);
 
-        String content = joinLines(lines);
-        tp.setTextSize(textSize);
-        StaticLayout staticLayout = new StaticLayout(content, tp, (int)(panelWidth - padding * 2), Layout.Alignment.ALIGN_NORMAL, 1.0f, lineSpacing, false);
-        float titleHeight = titleSize + lineSpacing;
-        float panelHeight = padding * 2 + titleHeight + staticLayout.getHeight();
-        float left = margin;
-        float top = height - panelHeight - margin;
+        Paint whiteBg = new Paint();
+        whiteBg.setColor(Color.argb(230, 255,255,255));
+        whiteBg.setStyle(Paint.Style.FILL);
+        whiteBg.setAntiAlias(true);
 
-        Paint maskingPaint = new Paint();
-        maskingPaint.setColor(Color.argb(150, 0,0,0));
-        maskingPaint.setStyle(Paint.Style.FILL);
-        maskingPaint.setAntiAlias(true);
-        canvas.drawRoundRect(new RectF(left, top, left + panelWidth, top + panelHeight), radius, radius, maskingPaint);
+        Paint yellowBg = new Paint();
+        yellowBg.setColor(Color.rgb(255, 198, 39));
+        yellowBg.setStyle(Paint.Style.FILL);
+        yellowBg.setAntiAlias(true);
 
-        tp.setTextSize(titleSize);
+        Paint yellowLine = new Paint();
+        yellowLine.setColor(Color.rgb(255, 198, 39));
+        yellowLine.setStyle(Paint.Style.FILL);
+        yellowLine.setAntiAlias(true);
+
+        tp.setTextSize(tagTextSize);
         tp.setFakeBoldText(true);
-        canvas.drawText("现场水印", left + padding, top + padding + titleSize, tp);
-        tp.setFakeBoldText(false);
-        tp.setTextSize(textSize);
+        float tagWidth = tp.measureText(data.tagText) + tagPaddingHorizontal * 2;
+        tp.setTextSize(timeTextSize);
+        float timeWidth = tp.measureText(data.timeText) + badgePadding * 2;
+        float badgeWidth = tagWidth + timeWidth;
 
-        canvas.save();
-        canvas.translate(left + padding, top + padding + titleHeight);
-        staticLayout.draw(canvas);
-        canvas.restore();
+        float verifyBaseline = height - bottom;
+        float dateBaseline = verifyBaseline - smallTextSize - lineGap;
+        float addressBaseline = dateBaseline - dateTextSize - lineGap;
+        float lineTop = addressBaseline - middleTextSize;
+        float lineBottom = verifyBaseline - smallTextSize * 0.15f;
+        float badgeBottom = lineTop - 18f * density * scale;
+        float badgeTop = badgeBottom - badgeHeight;
+
+        canvas.drawRoundRect(new RectF(left, badgeTop, left + badgeWidth, badgeBottom), badgeRadius, badgeRadius, whiteBg);
+        canvas.drawRoundRect(new RectF(left + 4f * density * scale, badgeTop + 4f * density * scale, left + tagWidth - 4f * density * scale, badgeBottom - 4f * density * scale), badgeRadius, badgeRadius, yellowBg);
+
+        tp.setFakeBoldText(true);
+        tp.setTextSize(tagTextSize);
+        tp.setColor(Color.BLACK);
+        canvas.drawText(data.tagText, left + tagPaddingHorizontal, badgeTop + badgeHeight * 0.68f, tp);
+        tp.setTextSize(timeTextSize);
+        tp.setColor(Color.rgb(0, 74, 150));
+        canvas.drawText(data.timeText, left + tagWidth + badgePadding, badgeTop + badgeHeight * 0.68f, tp);
+
+        canvas.drawRect(left, lineTop, left + yellowWidth, lineBottom, yellowLine);
+
+        tp.setFakeBoldText(false);
+        tp.setShadowLayer(2f * density * scale, 0, 1f * density * scale, Color.argb(130, 0,0,0));
+        tp.setColor(Color.WHITE);
+        tp.setTextSize(middleTextSize);
+        canvas.drawText(ellipsize(data.address, tp, width - contentLeft - left), contentLeft, addressBaseline, tp);
+        tp.setTextSize(dateTextSize);
+        tp.setFakeBoldText(true);
+        canvas.drawText(data.dateText, contentLeft, dateBaseline, tp);
+        tp.setFakeBoldText(false);
+        tp.setTextSize(smallTextSize);
+        canvas.drawText(data.verifyText, contentLeft, verifyBaseline, tp);
+        tp.clearShadowLayer();
         return newBitmap;
     }
 
-    private List<String> buildWatermarkLines(String timeText, String locationInfo, String watermarkInfo) {
-        List<String> lines = new ArrayList<>();
-        lines.add("时间：" + timeText);
+    private WatermarkData buildWatermarkData(Date date, String locationInfo, String watermarkInfo) {
+        DateFormat timeFormat = new SimpleDateFormat("HH:mm");
+        DateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd EEEE");
+        WatermarkData data = new WatermarkData();
+        data.tagText = "打卡";
+        data.timeText = timeFormat.format(date);
+        data.dateText = dateFormat.format(date);
+        data.address = locationInfo != null && locationInfo.length() > 0 ? locationInfo : "现场拍照";
+        data.verifyText = "SAF APP水印相机已验证 | 时间地点真实";
         if (watermarkInfo != null && watermarkInfo.length() > 0) {
             try {
                 JSONObject json = new JSONObject(watermarkInfo);
-                addJsonLine(lines, json, "address", "地点");
-                addJsonLine(lines, json, "nodeName", "产生单位");
-                addJsonLine(lines, json, "vehicleNo", "车牌号");
-                addJsonLine(lines, json, "routeName", "路线");
-                addJsonLine(lines, json, "operator", "操作人");
-                addJsonLine(lines, json, "businessType", "业务");
-                addJsonLine(lines, json, "remark", "备注");
+                data.tagText = json.optString("tagText", data.tagText);
+                data.address = json.optString("address", data.address);
+                data.verifyText = json.optString("verifyText", data.verifyText);
             } catch (JSONException ignored) {
-                lines.add(watermarkInfo);
+                data.address = watermarkInfo;
             }
-        } else if (locationInfo != null && locationInfo.length() > 0) {
-            lines.add("地点：" + locationInfo);
         }
-        return lines;
+        return data;
     }
 
-    private void addJsonLine(List<String> lines, JSONObject json, String key, String label) {
-        String value = json.optString(key, "");
-        if (value != null && value.length() > 0 && !"null".equals(value)) {
-            lines.add(label + "：" + value);
+    private String ellipsize(String text, TextPaint paint, float maxWidth) {
+        if (text == null) {
+            return "";
         }
+        if (paint.measureText(text) <= maxWidth) {
+            return text;
+        }
+        String suffix = "...";
+        int end = text.length();
+        while (end > 0 && paint.measureText(text.substring(0, end) + suffix) > maxWidth) {
+            end--;
+        }
+        return text.substring(0, Math.max(0, end)) + suffix;
     }
 
-    private String joinLines(List<String> lines) {
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < lines.size(); i++) {
-            if (i > 0) {
-                builder.append('\n');
-            }
-            builder.append(lines.get(i));
-        }
-        return builder.toString();
+    private static class WatermarkData {
+        String tagText;
+        String timeText;
+        String address;
+        String dateText;
+        String verifyText;
     }
 
     private int calculateInSampleSize(int originalWidth, int originalHeight, int requestedWidth, int requestedHeight) {
