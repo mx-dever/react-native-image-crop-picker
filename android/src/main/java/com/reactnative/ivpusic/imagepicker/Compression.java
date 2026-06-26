@@ -6,8 +6,10 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.media.ExifInterface;
 import android.os.Environment;
 import android.text.TextPaint;
@@ -106,22 +108,20 @@ class Compression {
         Canvas canvas = new Canvas(newBitmap);
 
         float scale = Math.max(1f, Math.min(width / 1080f, height / 1440f));
-        float left = 28f * density * scale;
-        float bottom = 32f * density * scale;
-        float badgeHeight = 54f * density * scale;
+        float left = 18f * density * scale;
+        float bottom = 18f * density * scale;
+        float badgeHeight = 48f * density * scale;
         float badgeRadius = 7f * density * scale;
-        float badgePadding = 12f * density * scale;
-        float tagPaddingHorizontal = 10f * density * scale;
-        float tagHeight = 38f * density * scale;
-        float textGap = 8f * density * scale;
-        float yellowWidth = 6f * density * scale;
-        float contentLeft = left + yellowWidth + 18f * density * scale;
-        float smallTextSize = 18f * density * scale;
-        float middleTextSize = 27f * density * scale;
-        float dateTextSize = 31f * density * scale;
-        float timeTextSize = 34f * density * scale;
-        float tagTextSize = 29f * density * scale;
-        float lineGap = 16f * density * scale;
+        float badgePadding = 10f * density * scale;
+        float tagPaddingHorizontal = 9f * density * scale;
+        float yellowWidth = 5f * density * scale;
+        float contentLeft = left + yellowWidth + 14f * density * scale;
+        float smallTextSize = 15f * density * scale;
+        float middleTextSize = 23f * density * scale;
+        float dateTextSize = 25f * density * scale;
+        float timeTextSize = 28f * density * scale;
+        float tagTextSize = 24f * density * scale;
+        float lineGap = 12f * density * scale;
 
         TextPaint tp = new TextPaint();
         tp.setColor(Color.WHITE);
@@ -143,6 +143,17 @@ class Compression {
         yellowLine.setStyle(Paint.Style.FILL);
         yellowLine.setAntiAlias(true);
 
+        Paint gradientPaint = new Paint();
+        gradientPaint.setShader(new LinearGradient(
+                0,
+                height * 0.58f,
+                0,
+                height,
+                Color.argb(0, 0, 0, 0),
+                Color.argb(115, 0, 0, 0),
+                Shader.TileMode.CLAMP
+        ));
+
         tp.setTextSize(tagTextSize);
         tp.setFakeBoldText(true);
         float tagWidth = tp.measureText(data.tagText) + tagPaddingHorizontal * 2;
@@ -155,8 +166,10 @@ class Compression {
         float addressBaseline = dateBaseline - dateTextSize - lineGap;
         float lineTop = addressBaseline - middleTextSize;
         float lineBottom = verifyBaseline - smallTextSize * 0.15f;
-        float badgeBottom = lineTop - 18f * density * scale;
+        float badgeBottom = lineTop - 14f * density * scale;
         float badgeTop = badgeBottom - badgeHeight;
+
+        canvas.drawRect(0, height * 0.58f, width, height, gradientPaint);
 
         canvas.drawRoundRect(new RectF(left, badgeTop, left + badgeWidth, badgeBottom), badgeRadius, badgeRadius, whiteBg);
         canvas.drawRoundRect(new RectF(left + 4f * density * scale, badgeTop + 4f * density * scale, left + tagWidth - 4f * density * scale, badgeBottom - 4f * density * scale), badgeRadius, badgeRadius, yellowBg);
@@ -172,18 +185,27 @@ class Compression {
         canvas.drawRect(left, lineTop, left + yellowWidth, lineBottom, yellowLine);
 
         tp.setFakeBoldText(false);
-        tp.setShadowLayer(2f * density * scale, 0, 1f * density * scale, Color.argb(130, 0,0,0));
-        tp.setColor(Color.WHITE);
+        tp.setShadowLayer(3f * density * scale, 0, 1.5f * density * scale, Color.argb(190, 0,0,0));
         tp.setTextSize(middleTextSize);
-        canvas.drawText(ellipsize(data.address, tp, width - contentLeft - left), contentLeft, addressBaseline, tp);
+        drawOutlinedText(canvas, tp, ellipsize(data.address, tp, width - contentLeft - left), contentLeft, addressBaseline, false);
         tp.setTextSize(dateTextSize);
-        tp.setFakeBoldText(true);
-        canvas.drawText(data.dateText, contentLeft, dateBaseline, tp);
-        tp.setFakeBoldText(false);
+        drawOutlinedText(canvas, tp, data.dateText, contentLeft, dateBaseline, true);
         tp.setTextSize(smallTextSize);
-        canvas.drawText(data.verifyText, contentLeft, verifyBaseline, tp);
+        drawOutlinedText(canvas, tp, data.verifyText, contentLeft, verifyBaseline, false);
         tp.clearShadowLayer();
         return newBitmap;
+    }
+
+    private void drawOutlinedText(Canvas canvas, TextPaint paint, String text, float x, float y, boolean bold) {
+        paint.setFakeBoldText(bold);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(Math.max(2f, paint.getTextSize() * 0.08f));
+        paint.setColor(Color.argb(170, 0, 0, 0));
+        canvas.drawText(text, x, y, paint);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.WHITE);
+        canvas.drawText(text, x, y, paint);
+        paint.setFakeBoldText(false);
     }
 
     private WatermarkData buildWatermarkData(Date date, String locationInfo, String watermarkInfo) {
