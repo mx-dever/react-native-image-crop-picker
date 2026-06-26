@@ -12,6 +12,8 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.media.ExifInterface;
 import android.os.Environment;
+import android.text.Layout;
+import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.util.Log;
 import android.util.Pair;
@@ -160,11 +162,14 @@ class Compression {
         tp.setTextSize(timeTextSize);
         float timeWidth = tp.measureText(data.timeText) + badgePadding * 2;
         float badgeWidth = tagWidth + timeWidth;
+        float maxTextWidth = width - contentLeft - left;
+        tp.setTextSize(middleTextSize);
+        StaticLayout addressLayout = new StaticLayout(data.address, tp, (int) maxTextWidth, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
 
         float verifyBaseline = height - bottom;
         float dateBaseline = verifyBaseline - smallTextSize - lineGap;
-        float addressBaseline = dateBaseline - dateTextSize - lineGap;
-        float lineTop = addressBaseline - middleTextSize;
+        float addressTop = dateBaseline - dateTextSize - lineGap - addressLayout.getHeight();
+        float lineTop = addressTop;
         float lineBottom = verifyBaseline - smallTextSize * 0.15f;
         float badgeBottom = lineTop - 14f * density * scale;
         float badgeTop = badgeBottom - badgeHeight;
@@ -185,9 +190,9 @@ class Compression {
         canvas.drawRect(left, lineTop, left + yellowWidth, lineBottom, yellowLine);
 
         tp.setFakeBoldText(false);
-        tp.setShadowLayer(3f * density * scale, 0, 1.5f * density * scale, Color.argb(190, 0,0,0));
+        tp.setShadowLayer(2f * density * scale, 0, 1f * density * scale, Color.argb(120, 0,0,0));
         tp.setTextSize(middleTextSize);
-        drawOutlinedText(canvas, tp, ellipsize(data.address, tp, width - contentLeft - left), contentLeft, addressBaseline, false);
+        drawOutlinedLayout(canvas, tp, addressLayout, contentLeft, addressTop, false);
         tp.setTextSize(dateTextSize);
         drawOutlinedText(canvas, tp, data.dateText, contentLeft, dateBaseline, true);
         tp.setTextSize(smallTextSize);
@@ -196,11 +201,26 @@ class Compression {
         return newBitmap;
     }
 
+    private void drawOutlinedLayout(Canvas canvas, TextPaint paint, StaticLayout layout, float x, float y, boolean bold) {
+        paint.setFakeBoldText(bold);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(Math.max(1.2f, paint.getTextSize() * 0.045f));
+        paint.setColor(Color.argb(95, 0, 0, 0));
+        canvas.save();
+        canvas.translate(x, y);
+        layout.draw(canvas);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.WHITE);
+        layout.draw(canvas);
+        canvas.restore();
+        paint.setFakeBoldText(false);
+    }
+
     private void drawOutlinedText(Canvas canvas, TextPaint paint, String text, float x, float y, boolean bold) {
         paint.setFakeBoldText(bold);
         paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(Math.max(2f, paint.getTextSize() * 0.08f));
-        paint.setColor(Color.argb(170, 0, 0, 0));
+        paint.setStrokeWidth(Math.max(1.2f, paint.getTextSize() * 0.045f));
+        paint.setColor(Color.argb(95, 0, 0, 0));
         canvas.drawText(text, x, y, paint);
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(Color.WHITE);
@@ -228,21 +248,6 @@ class Compression {
             }
         }
         return data;
-    }
-
-    private String ellipsize(String text, TextPaint paint, float maxWidth) {
-        if (text == null) {
-            return "";
-        }
-        if (paint.measureText(text) <= maxWidth) {
-            return text;
-        }
-        String suffix = "...";
-        int end = text.length();
-        while (end > 0 && paint.measureText(text.substring(0, end) + suffix) > maxWidth) {
-            end--;
-        }
-        return text.substring(0, Math.max(0, end)) + suffix;
     }
 
     private static class WatermarkData {
