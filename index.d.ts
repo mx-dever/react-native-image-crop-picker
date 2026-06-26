@@ -354,6 +354,15 @@ declare module "react-native-image-crop-picker" {
          * @default null
          */
         locationInfo?: string;
+
+        /**
+         * Structured watermark text on image. Android only in this fork.
+         * When present, callers can pass a JSON string with keys such as
+         * address, nodeName, vehicleNo, routeName, operator, businessType, remark.
+         *
+         * @default null
+         */
+        watermarkInfo?: string;
     }
 
     type CropperOptions = ImageOptions & {

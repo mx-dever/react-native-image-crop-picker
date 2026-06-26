@@ -26,10 +26,14 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 /**
  * Created by ipusic on 12/27/16.
@@ -46,7 +50,8 @@ class Compression {
             int maxHeight,
             int quality,
             boolean enableWaterMarker,
-            String locationInfo
+            String locationInfo,
+            String watermarkInfo
     ) throws IOException {
         Pair<Integer, Integer> targetDimensions =
                 this.calculateTargetDimensions(originalWidth, originalHeight, maxWidth, maxHeight);
@@ -80,7 +85,7 @@ class Compression {
 
         OutputStream os = new BufferedOutputStream(new FileOutputStream(resizeImageFile));
         if (enableWaterMarker) {
-            bitmap = handlerWaterRemark(bitmap, context.getResources().getDisplayMetrics().density*46, locationInfo);
+            bitmap = handlerWaterRemark(bitmap, context.getResources().getDisplayMetrics().density, locationInfo, watermarkInfo);
         }
         bitmap.compress(Bitmap.CompressFormat.JPEG, quality, os);
         // Don't set unnecessary exif attribute
@@ -95,45 +100,96 @@ class Compression {
 
         return resizeImageFile;
     }
-    private Bitmap handlerWaterRemark(Bitmap bitmap, float textSize, String locationInfo) {
+    private Bitmap handlerWaterRemark(Bitmap bitmap, float density, String locationInfo, String watermarkInfo) {
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        String msg = df.format(new Date());
-        //原始图片宽高
+        List<String> lines = buildWatermarkLines(df.format(new Date()), locationInfo, watermarkInfo);
+        if (lines.isEmpty()) {
+            return bitmap;
+        }
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
-        //创建一个跟原图一样大的Bitmap
         Bitmap newBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
-        //将该图片作为画布
         Canvas canvas = new Canvas(newBitmap);
-        //设置画笔颜色
-        Paint paint = new Paint();
-        paint.setColor(Color.WHITE);
-        //画笔
-        Paint maskingPaint = new Paint();
-        maskingPaint.setColor(Color.argb(60, 0,0,0));
-        maskingPaint.setStyle(Paint.Style.FILL);
-        maskingPaint.setStrokeJoin(Paint.Join.ROUND);
-        //设置文字大小
-        paint.setTextSize(textSize);
-        float locationTextSize = textSize;
-        //文字总宽度
-        float textWidth = locationInfo != null && locationInfo.length() > msg.length() ? locationInfo.length() * textSize : msg.length() * textSize;
-        canvas.translate(30, (float)(height - textSize*2.2));
-        canvas.rotate(360);
-        canvas.drawRoundRect(new RectF( -20,  -textWidth/12, (float) (textWidth*1.2), 280), 10,10, maskingPaint);
-        String content = msg + (locationInfo != null ? '\n' + locationInfo : "");
-        canvas.save();
+
+        float scale = Math.max(1f, Math.min(width / 1080f, height / 1440f));
+        float padding = 16f * density * scale;
+        float margin = 20f * density * scale;
+        float radius = 12f * density * scale;
+        float titleSize = 20f * density * scale;
+        float textSize = 15f * density * scale;
+        float lineSpacing = 6f * density * scale;
+        float panelWidth = width - margin * 2;
+
         TextPaint tp = new TextPaint();
         tp.setColor(Color.WHITE);
         tp.setStyle(Paint.Style.FILL);
-        tp.setTextSize(locationTextSize);
-        StaticLayout staticLayout = new StaticLayout(content, tp, canvas.getWidth()-10, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
-        canvas.translate(0, -staticLayout.getHeight() / 2);
-        staticLayout.draw(canvas);
-        //保存图片
+        tp.setAntiAlias(true);
+
+        String content = joinLines(lines);
+        tp.setTextSize(textSize);
+        StaticLayout staticLayout = new StaticLayout(content, tp, (int)(panelWidth - padding * 2), Layout.Alignment.ALIGN_NORMAL, 1.0f, lineSpacing, false);
+        float titleHeight = titleSize + lineSpacing;
+        float panelHeight = padding * 2 + titleHeight + staticLayout.getHeight();
+        float left = margin;
+        float top = height - panelHeight - margin;
+
+        Paint maskingPaint = new Paint();
+        maskingPaint.setColor(Color.argb(150, 0,0,0));
+        maskingPaint.setStyle(Paint.Style.FILL);
+        maskingPaint.setAntiAlias(true);
+        canvas.drawRoundRect(new RectF(left, top, left + panelWidth, top + panelHeight), radius, radius, maskingPaint);
+
+        tp.setTextSize(titleSize);
+        tp.setFakeBoldText(true);
+        canvas.drawText("现场水印", left + padding, top + padding + titleSize, tp);
+        tp.setFakeBoldText(false);
+        tp.setTextSize(textSize);
+
         canvas.save();
+        canvas.translate(left + padding, top + padding + titleHeight);
+        staticLayout.draw(canvas);
         canvas.restore();
         return newBitmap;
+    }
+
+    private List<String> buildWatermarkLines(String timeText, String locationInfo, String watermarkInfo) {
+        List<String> lines = new ArrayList<>();
+        lines.add("时间：" + timeText);
+        if (watermarkInfo != null && watermarkInfo.length() > 0) {
+            try {
+                JSONObject json = new JSONObject(watermarkInfo);
+                addJsonLine(lines, json, "address", "地点");
+                addJsonLine(lines, json, "nodeName", "产生单位");
+                addJsonLine(lines, json, "vehicleNo", "车牌号");
+                addJsonLine(lines, json, "routeName", "路线");
+                addJsonLine(lines, json, "operator", "操作人");
+                addJsonLine(lines, json, "businessType", "业务");
+                addJsonLine(lines, json, "remark", "备注");
+            } catch (JSONException ignored) {
+                lines.add(watermarkInfo);
+            }
+        } else if (locationInfo != null && locationInfo.length() > 0) {
+            lines.add("地点：" + locationInfo);
+        }
+        return lines;
+    }
+
+    private void addJsonLine(List<String> lines, JSONObject json, String key, String label) {
+        String value = json.optString(key, "");
+        if (value != null && value.length() > 0 && !"null".equals(value)) {
+            lines.add(label + "：" + value);
+        }
+    }
+
+    private String joinLines(List<String> lines) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < lines.size(); i++) {
+            if (i > 0) {
+                builder.append('\n');
+            }
+            builder.append(lines.get(i));
+        }
+        return builder.toString();
     }
 
     private int calculateInSampleSize(int originalWidth, int originalHeight, int requestedWidth, int requestedHeight) {
@@ -159,7 +215,7 @@ class Compression {
                 && !orientation.equals(String.valueOf(ExifInterface.ORIENTATION_UNDEFINED));
     }
 
-    File compressImage(final Context context, final ReadableMap options, final String originalImagePath, final BitmapFactory.Options bitmapOptions, final boolean enableWaterMarker, final String locationInfo) throws IOException {
+    File compressImage(final Context context, final ReadableMap options, final String originalImagePath, final BitmapFactory.Options bitmapOptions, final boolean enableWaterMarker, final String locationInfo, final String watermarkInfo) throws IOException {
         Integer maxWidth = options.hasKey("compressImageMaxWidth") ? options.getInt("compressImageMaxWidth") : null;
         Integer maxHeight = options.hasKey("compressImageMaxHeight") ? options.getInt("compressImageMaxHeight") : null;
         Double quality = options.hasKey("compressImageQuality") ? options.getDouble("compressImageQuality") : null;
@@ -171,7 +227,7 @@ class Compression {
         List knownMimes = Arrays.asList("image/jpeg", "image/jpg", "image/png", "image/gif", "image/tiff");
         boolean isKnownMimeType = (bitmapOptions.outMimeType != null && knownMimes.contains(bitmapOptions.outMimeType.toLowerCase()));
 
-        if (isLossLess && useOriginalWidth && useOriginalHeight && isKnownMimeType) {
+        if (!enableWaterMarker && isLossLess && useOriginalWidth && useOriginalHeight && isKnownMimeType) {
             Log.d("image-crop-picker", "Skipping image compression");
             return new File(originalImagePath);
         }
@@ -185,7 +241,7 @@ class Compression {
         if (maxWidth == null) maxWidth = bitmapOptions.outWidth;
         if (maxHeight == null) maxHeight = bitmapOptions.outHeight;
 
-        return resize(context, originalImagePath, bitmapOptions.outWidth, bitmapOptions.outHeight, maxWidth, maxHeight, targetQuality, enableWaterMarker, locationInfo);
+        return resize(context, originalImagePath, bitmapOptions.outWidth, bitmapOptions.outHeight, maxWidth, maxHeight, targetQuality, enableWaterMarker, locationInfo, watermarkInfo);
     }
 
     private Pair<Integer, Integer> calculateTargetDimensions(int currentWidth, int currentHeight, int maxWidth, int maxHeight) {
